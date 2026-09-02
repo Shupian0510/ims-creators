@@ -18,6 +18,7 @@
     "build": "nuxt generate && npm run postbuild",
     "postbuild": "node scripts/postbuild.js",
     "package": "npm run build && electron-builder --publish never",
+    "release": "npm run build && electron-builder --win",
     "preview": "nuxt preview",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "nuxt prepare && electron-builder install-app-deps",
@@ -31,8 +32,9 @@
     "afterPack": "scripts/after_pack.js",
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://ims.cr5.space/desktop/releases/"
+        "provider": "github",
+        "owner": "Shupian0510",
+        "repo": "ims-creators"
       }
     ],
     "productName": "ImscDesktop",

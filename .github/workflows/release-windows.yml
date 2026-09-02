@@ -1,0 +1,82 @@
+name: Release (Windows)
+
+# 打 tag 触发正式发布；手动触发只出产物、不发 Release，便于验证流水线。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    env:
+      AUTH_API_HOST: https://auth.cr5.space/
+      CREATORS_API_HOST: https://api.cr5.space/
+      FILE_STORAGE_API_HOST: https://fs.cr5.space/
+      SUPERVISOR_API_HOST: https://sv.cr5.space/
+      GAMEMANAGER_API_HOST: https://gm.cr5.space/
+      SPACE_API_HOST: https://space.cr5.space/
+      CREATORS_HOST: https://ims.cr5.space/
+      PROJECT_TEMPLATES_LINK: https://ims.cr5.space/imsc-templates.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: |
+            ims-app-base/package-lock.json
+            creators/package-lock.json
+            desktop/package-lock.json
+
+      # tag 必须与 desktop/package.json 的 version 一致，否则 electron-updater
+      # 会拿到版本号对不上的 Release，自动更新静默失效。
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./desktop/package.json').version")
+          echo "tag=$TAG  package.json=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match desktop/package.json version $PKG"
+            exit 1
+          fi
+
+      - name: Install deps (ims-app-base)
+        run: npm ci
+        working-directory: ims-app-base
+
+      - name: Install deps (creators)
+        run: npm ci
+        working-directory: creators
+
+      # postinstall 会跑 electron-builder install-app-deps，
+      # 为 Electron 的 ABI 重建 better-sqlite3 这个原生模块。
+      - name: Install deps (desktop)
+        run: npm ci
+        working-directory: desktop
+
+      - name: Build and publish
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release -- --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+
+      - name: Upload artifact (manual runs only)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImscDesktop-Windows
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.blockmap
+            desktop/release/latest.yml
