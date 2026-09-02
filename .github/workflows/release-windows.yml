@@ -59,11 +59,31 @@ jobs:
         run: npm ci
         working-directory: creators
 
-      # postinstall 会跑 electron-builder install-app-deps，
-      # 为 Electron 的 ABI 重建 better-sqlite3 这个原生模块。
-      - name: Install deps (desktop)
-        run: npm ci
+      # Read the pinned Electron version before installing, so the ABI target
+      # below tracks the lockfile instead of drifting from a hardcoded value.
+      - name: Resolve Electron version
+        id: electron
+        shell: bash
         working-directory: desktop
+        run: |
+          V=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")
+          echo "Electron $V"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      # better-sqlite3 is not an N-API module, so its binary must match the
+      # Electron ABI. Left to itself, prebuild-install looks for a Node 24
+      # (ABI 137) build that upstream never published -- prebuilds stop at
+      # ABI 131 -- then falls back to node-gyp, which cannot find Visual
+      # Studio on the runner image. Targeting Electron makes it fetch the
+      # electron-v135 prebuild directly and compile nothing.
+      - name: Install deps (desktop)
+        working-directory: desktop
+        env:
+          npm_config_runtime: electron
+          npm_config_target: ${{ steps.electron.outputs.version }}
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_build_from_source: "false"
+        run: npm ci
 
       # Only ims-app-base has runnable specs. creators has none, and the
       # desktop specs need a node-ABI better-sqlite3 while the packaged app
