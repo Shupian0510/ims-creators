@@ -41,10 +41,39 @@ The created objects can be uploaded directly to the game engine in custom JSON o
 
 ## Run from source
 
-Download repo and it's submodule:
+### Prerequisites
+
+**Node 20, 22 or 23 -- not 24.** `.nvmrc` pins 22. `better-sqlite3` is not an
+N-API module, so its binary is ABI-specific, and upstream publishes prebuilt
+binaries only up to ABI 131 (Node 23). On Node 24 (ABI 137) npm falls back to
+building it from source, which needs a full C++ toolchain.
+
+**On Windows, a C++ toolchain is required regardless of the Node version.**
+`electron-builder install-app-deps` runs on postinstall and always source-builds
+`@parcel/watcher`: that package ships its prebuilt binaries as separate platform
+packages (`@parcel/watcher-win32-x64`), a convention `@electron/rebuild` does not
+recognise, so it never finds them. The build output is then never loaded --
+`@parcel/watcher/index.js` prefers the platform package -- but the install still
+fails without a compiler.
+
+Install **Visual Studio 2022** Build Tools with the "Desktop development with
+C++" workload, plus Python 3:
+
+```powershell
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+Use 2022, not 2026: this project pins `@electron/node-gyp@10.2.0-electron.1`,
+which cannot parse newer Visual Studio versions and reports
+`unknown version "undefined"`.
+
+macOS and Linux need Xcode command line tools / `build-essential` respectively.
+
+### Build
 
 ```bash
-git clone --recurse-submodules https://github.com/ImStocker/ims-creators.git
+git clone https://github.com/Shupian0510/ims-creators.git
+cd ims-creators
 ```
 
 Install dependencies in 3 folders:
@@ -64,7 +93,7 @@ Copy default env:
 cp .env.example .env
 ```
 
-Run application
+Run application (from `desktop/` -- the other two are Nuxt layers, not runnable apps):
 
 ```
 npm run dev

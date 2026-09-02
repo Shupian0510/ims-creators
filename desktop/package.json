@@ -12,6 +12,9 @@
     "type": "git"
   },
   "description": "Game design editor: write docs, manage game enities, create dialogues, prototype levels",
+  "engines": {
+    "node": ">=20 <24"
+  },
   "scripts": {
     "dev": "nuxt dev",
     "generate": "nuxt generate",
