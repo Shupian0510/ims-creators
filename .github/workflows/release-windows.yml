@@ -65,6 +65,13 @@ jobs:
         run: npm ci
         working-directory: desktop
 
+      # Only ims-app-base has runnable specs. creators has none, and the
+      # desktop specs need a node-ABI better-sqlite3 while the packaged app
+      # needs the Electron one -- see desktop/vitest.config.ts.
+      - name: Test (ims-app-base)
+        run: npx vitest run
+        working-directory: ims-app-base
+
       - name: Build and publish
         working-directory: desktop
         env:
